@@ -54,8 +54,6 @@
 #include "vte.h"
 #include "win32.h"
 
-#include "gtkcompat.h"
-
 #ifdef HAVE_SYS_TIME_H
 # include <sys/time.h>
 #endif
@@ -78,6 +76,7 @@
 /*#define USE_GIO_FILEMON 1*/
 #include <gio/gio.h>
 
+#include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
 
 
@@ -435,7 +434,7 @@ void document_update_tab_label(GeanyDocument *doc)
 
 	g_return_if_fail(doc != NULL);
 
-	short_name = document_get_basename_for_display(doc, -1);
+	short_name = document_get_basename_for_display(doc, interface_prefs.tab_label_len);
 
 	/* we need to use the event box for the tooltip, labels don't get the necessary events */
 	parent = gtk_widget_get_parent(doc->priv->tab_label);
@@ -648,6 +647,8 @@ static GeanyDocument *document_create(const gchar *utf8_filename)
 
 	/* initialize default document settings */
 	doc->priv = g_new0(GeanyDocumentPrivate, 1);
+	doc->priv->tag_filter = g_strdup("");
+	doc->priv->symbols_group_by_type = TRUE;
 	doc->id = ++doc_id_counter;
 	doc->index = new_idx;
 	doc->file_name = g_strdup(utf8_filename);
@@ -735,6 +736,7 @@ static gboolean remove_page(guint page_num)
 	}
 	g_free(doc->encoding);
 	g_free(doc->priv->saved_encoding.encoding);
+	g_free(doc->priv->tag_filter);
 	g_free(doc->file_name);
 	g_free(doc->real_path);
 	if (doc->tm_file)
@@ -1858,9 +1860,6 @@ gboolean document_save_file_as(GeanyDocument *doc, const gchar *utf8_fname)
 	 * to ignore any earlier events */
 	monitor_file_setup(doc);
 	doc->priv->file_disk_status = FILE_IGNORE;
-
-	if (ret)
-		ui_add_recent_document(doc);
 	return ret;
 }
 
@@ -2036,6 +2035,7 @@ static gchar *save_doc(GeanyDocument *doc, const gchar *locale_filename,
 		doc->real_path = utils_get_real_path(locale_filename);
 		doc->priv->is_remote = utils_is_remote_path(locale_filename);
 		monitor_file_setup(doc);
+		ui_add_recent_document(doc);
 	}
 	return NULL;
 }
@@ -3285,7 +3285,6 @@ const GdkColor *document_get_status_color(GeanyDocument *doc)
 		return NULL;
 	if (! document_status_styles[status].loaded)
 	{
-#if GTK_CHECK_VERSION(3, 0, 0)
 		GdkRGBA color;
 		GtkWidgetPath *path = gtk_widget_path_new();
 		GtkStyleContext *ctx = gtk_style_context_new();
@@ -3303,16 +3302,6 @@ const GdkColor *document_get_status_color(GeanyDocument *doc)
 		document_status_styles[status].loaded = TRUE;
 		gtk_widget_path_unref(path);
 		g_object_unref(ctx);
-#else
-		GtkSettings *settings = gtk_widget_get_settings(GTK_WIDGET(doc->editor->sci));
-		gchar *path = g_strconcat("GeanyMainWindow.GtkHBox.GtkNotebook.",
-				document_status_styles[status].name, NULL);
-		GtkStyle *style = gtk_rc_get_style_by_paths(settings, path, NULL, GTK_TYPE_LABEL);
-
-		document_status_styles[status].color = style->fg[GTK_STATE_NORMAL];
-		document_status_styles[status].loaded = TRUE;
-		g_free(path);
-#endif
 	}
 	return &document_status_styles[status].color;
 }
@@ -3482,7 +3471,7 @@ static GtkWidget* document_show_message(GeanyDocument *doc, GtkMessageType msgty
 
 	g_signal_connect(info_widget, "response", G_CALLBACK(response_cb), doc);
 
-	hbox = gtk_hbox_new(FALSE, 12);
+	hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
 	gtk_box_pack_start(GTK_BOX(content_area), hbox, TRUE, TRUE, 0);
 
 	switch (msgtype)
@@ -3509,7 +3498,7 @@ static GtkWidget* document_show_message(GeanyDocument *doc, GtkMessageType msgty
 
 	if (extra_text)
 	{
-		GtkWidget *vbox = gtk_vbox_new(FALSE, 6);
+		GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
 		GtkWidget *extra_label = geany_wrap_label_new(extra_text);
 
 		gtk_box_pack_start(GTK_BOX(vbox), label, TRUE, TRUE, 0);
@@ -3568,15 +3557,15 @@ static gboolean on_sci_key(GtkWidget *widget, GdkEventKey *event, gpointer data)
 
 	switch (event->keyval)
 	{
-		case GDK_Tab:
-		case GDK_ISO_Left_Tab:
+		case GDK_KEY_Tab:
+		case GDK_KEY_ISO_Left_Tab:
 		{
 			GtkWidget *action_area = gtk_info_bar_get_action_area(bar);
-			GtkDirectionType dir = event->keyval == GDK_Tab ? GTK_DIR_TAB_FORWARD : GTK_DIR_TAB_BACKWARD;
+			GtkDirectionType dir = event->keyval == GDK_KEY_Tab ? GTK_DIR_TAB_FORWARD : GTK_DIR_TAB_BACKWARD;
 			gtk_widget_child_focus(action_area, dir);
 			return TRUE;
 		}
-		case GDK_Escape:
+		case GDK_KEY_Escape:
 		{
 			gtk_info_bar_response(bar, GTK_RESPONSE_CANCEL);
 			return TRUE;

@@ -57,10 +57,9 @@
 #include "vte.h"
 #include "osx.h"
 
-#include "gtkcompat.h"
-
 #include <stdlib.h>
 #include <string.h>
+#include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
 
 
@@ -89,6 +88,7 @@ static void on_toolbar_show_toggled(GtkToggleButton *togglebutton, gpointer user
 static void on_show_notebook_tabs_toggled(GtkToggleButton *togglebutton, gpointer user_data);
 static void on_enable_plugins_toggled(GtkToggleButton *togglebutton, gpointer user_data);
 static void on_use_folding_toggled(GtkToggleButton *togglebutton, gpointer user_data);
+static void on_check_line_end_toggled(GtkToggleButton *togglebutton, gpointer user_data);
 static void on_open_encoding_toggled(GtkToggleButton *togglebutton, gpointer user_data);
 static void on_sidebar_visible_toggled(GtkToggleButton *togglebutton, gpointer user_data);
 static void on_prefs_print_radio_button_toggled(GtkToggleButton *togglebutton, gpointer user_data);
@@ -247,7 +247,7 @@ static void kb_show_popup_menu(KbData *kbdata, GtkWidget *widget, GdkEventButton
 		event_time = gtk_get_current_event_time();
 	}
 
-	gtk_menu_popup(GTK_MENU(menu), NULL, NULL, NULL, NULL, button, event_time);
+	ui_menu_popup(GTK_MENU(menu), NULL, NULL, button, event_time);
 }
 
 
@@ -410,9 +410,6 @@ static void prefs_init_dialog(void)
 	widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_load_session");
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget), prefs.load_session);
 
-	widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_project_session");
-	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget), project_prefs.project_session);
-
 	widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_project_file_in_basedir");
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget), project_prefs.project_file_in_basedir);
 
@@ -437,10 +434,6 @@ static void prefs_init_dialog(void)
 
 	widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_auto_focus");
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget), prefs.auto_focus);
-
-	widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_native_windows_dialogs");
-	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget),
-		interface_prefs.use_native_windows_dialogs);
 
 	widget = ui_lookup_widget(ui_widgets.prefs_dialog, "entry_contextaction");
 	gtk_entry_set_text(GTK_ENTRY(widget), tool_prefs.context_action_cmd);
@@ -598,6 +591,10 @@ static void prefs_init_dialog(void)
 
 	widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_line_end");
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget), editor_prefs.show_line_endings);
+
+	widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_line_endings_only_when_differ");
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget),
+		editor_prefs.show_line_endings_only_when_differ);
 
 	widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_line_numbers");
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget), editor_prefs.show_linenumber_margin);
@@ -763,6 +760,8 @@ static void prefs_init_dialog(void)
 	/* VTE settings */
 	if (vte_info.have_vte)
 	{
+		VteConfig *vc = &vte_config;
+
 		widget = ui_lookup_widget(ui_widgets.prefs_dialog, "font_term");
 		gtk_font_button_set_font_name(GTK_FONT_BUTTON(widget), vc->font);
 
@@ -893,9 +892,6 @@ on_prefs_dialog_response(GtkDialog *dialog, gint response, gpointer user_data)
 		widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_load_session");
 		prefs.load_session = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
-		widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_project_session");
-		project_prefs.project_session = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-
 		widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_project_file_in_basedir");
 		project_prefs.project_file_in_basedir = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
@@ -920,10 +916,6 @@ on_prefs_dialog_response(GtkDialog *dialog, gint response, gpointer user_data)
 
 		widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_auto_focus");
 		prefs.auto_focus = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-
-		widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_native_windows_dialogs");
-		interface_prefs.use_native_windows_dialogs =
-			gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
 		widget = ui_lookup_widget(ui_widgets.prefs_dialog, "entry_contextaction");
 		g_free(tool_prefs.context_action_cmd);
@@ -973,6 +965,8 @@ on_prefs_dialog_response(GtkDialog *dialog, gint response, gpointer user_data)
 		widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_statusbar_visible");
 		interface_prefs.statusbar_visible = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
+		widget = ui_lookup_widget(ui_widgets.prefs_dialog, "spin_tab_label_len");
+		interface_prefs.tab_label_len = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
 
 		/* Toolbar settings */
 		widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_toolbar_show");
@@ -1075,6 +1069,10 @@ on_prefs_dialog_response(GtkDialog *dialog, gint response, gpointer user_data)
 
 		widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_line_end");
 		editor_prefs.show_line_endings = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+
+		widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_line_endings_only_when_differ");
+		editor_prefs.show_line_endings_only_when_differ = gtk_toggle_button_get_active(
+			GTK_TOGGLE_BUTTON(widget));
 
 		widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_line_numbers");
 		editor_prefs.show_linenumber_margin = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
@@ -1239,6 +1237,8 @@ on_prefs_dialog_response(GtkDialog *dialog, gint response, gpointer user_data)
 		/* VTE settings */
 		if (vte_info.have_vte)
 		{
+			VteConfig *vc = &vte_config;
+
 			widget = ui_lookup_widget(ui_widgets.prefs_dialog, "spin_scrollback");
 			gtk_spin_button_update(GTK_SPIN_BUTTON(widget));
 			vc->scrollback_lines = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widget));
@@ -1296,6 +1296,8 @@ on_prefs_dialog_response(GtkDialog *dialog, gint response, gpointer user_data)
 				editor_apply_update_prefs(documents[i]->editor);
 				if (! editor_prefs.folding)
 					editor_unfold_all(documents[i]->editor);
+
+				document_update_tab_label(documents[i]);
 			}
 		}
 		ui_document_show_hide(NULL);
@@ -1305,6 +1307,7 @@ on_prefs_dialog_response(GtkDialog *dialog, gint response, gpointer user_data)
 		ui_save_buttons_toggle((doc != NULL) ? doc->changed : FALSE);
 		msgwin_show_hide_tabs();
 		ui_update_statusbar(doc, -1);
+		ui_set_window_title(doc);
 
 		/* store all settings */
 		configuration_save();
@@ -1420,7 +1423,7 @@ static gboolean kb_grab_key_dialog_key_press_cb(GtkWidget *dialog, GdkEventKey *
 
 	state = keybindings_get_modifiers(event->state);
 
-	if (event->keyval == GDK_Escape)
+	if (event->keyval == GDK_KEY_Escape)
 		return FALSE;	/* close the dialog, don't allow escape when detecting keybindings. */
 
 	str = gtk_accelerator_name(event->keyval, state);
@@ -1537,6 +1540,14 @@ static void on_use_folding_toggled(GtkToggleButton *togglebutton, gpointer user_
 	gboolean sens = gtk_toggle_button_get_active(togglebutton);
 
 	gtk_widget_set_sensitive(ui_lookup_widget(ui_widgets.prefs_dialog, "check_unfold_children"), sens);
+}
+
+
+static void on_check_line_end_toggled(GtkToggleButton *togglebutton, gpointer user_data)
+{
+	gboolean sens = gtk_toggle_button_get_active(togglebutton);
+
+	gtk_widget_set_sensitive(ui_lookup_widget(ui_widgets.prefs_dialog, "check_line_endings_only_when_differ"), sens);
 }
 
 
@@ -1813,6 +1824,8 @@ void prefs_show_dialog(void)
 				"toggled", G_CALLBACK(on_show_notebook_tabs_toggled), NULL);
 		g_signal_connect(ui_lookup_widget(ui_widgets.prefs_dialog, "check_folding"),
 				"toggled", G_CALLBACK(on_use_folding_toggled), NULL);
+		g_signal_connect(ui_lookup_widget(ui_widgets.prefs_dialog, "check_line_end"),
+				"toggled", G_CALLBACK(on_check_line_end_toggled), NULL);
 		g_signal_connect(ui_lookup_widget(ui_widgets.prefs_dialog, "check_open_encoding"),
 				"toggled", G_CALLBACK(on_open_encoding_toggled), NULL);
 		g_signal_connect(ui_lookup_widget(ui_widgets.prefs_dialog, "check_sidebar_visible"),
