@@ -68,8 +68,16 @@ typedef struct
 #define EMPTY_KEYWORDS		((HLKeyword *) NULL)
 #define EMPTY_PROPERTIES	((HLProperty *) NULL)
 
-/* like G_N_ELEMENTS() but supports @array being NULL (for empty entries) */
-#define HL_N_ENTRIES(array) ((array != NULL) ? G_N_ELEMENTS(array) : 0)
+/* like G_N_ELEMENTS() but supports @array being NULL (for empty entries).
+ * The straightforward `((array != NULL) ? G_N_ELEMENTS(array) : 0)` is not
+ * used here because of GCC8's -Wsizeof-pointer-div which doesn't realize the
+ * result of G_N_ELEMENTS() is never actually used when `array` is NULL.
+ * This implementation gives the same result as the LHS of the division
+ * becomes 0 when `array` is NULL, but is not a case that GCC can misinterpret
+ * and warn about.
+ * An alternative solution would be using zero-sized arrays instead of NULLs,
+ * but zero-sized arrays are forbidden by ISO C */
+#define HL_N_ENTRIES(array) ((sizeof(array) * ((array) != NULL)) / sizeof((array)[0]))
 
 
 /* Abaqus */
@@ -695,7 +703,8 @@ static const HLStyle highlighting_styles_GDSCRIPT[] =
 	{ SCE_GD_COMMENTBLOCK,	"commentblock",		FALSE },
 	{ SCE_GD_STRINGEOL,		"stringeol",		FALSE },
 	{ SCE_GD_WORD2,			"word2",			FALSE },
-	{ SCE_GD_ANNOTATION,	"annotation",		FALSE }
+	{ SCE_GD_ANNOTATION,	"annotation",		FALSE },
+	{ SCE_GD_NODEPATH,		"notepath",			FALSE }
 };
 static const HLKeyword highlighting_keywords_GDSCRIPT[] =
 {
@@ -1349,7 +1358,8 @@ static const HLStyle highlighting_styles_PYTHON[] =
 	{ SCE_P_FCHARACTER,		"fcharacter",		FALSE },
 	{ SCE_P_FTRIPLE,		"ftriple",			FALSE },
 	{ SCE_P_FTRIPLEDOUBLE,	"ftripledouble",	FALSE },
-	{ SCE_P_DECORATOR,		"decorator",		FALSE }
+	{ SCE_P_DECORATOR,		"decorator",		FALSE },
+	{ SCE_P_ATTRIBUTE,		"attribute",		FALSE }
 };
 static const HLKeyword highlighting_keywords_PYTHON[] =
 {
@@ -1363,18 +1373,22 @@ static const HLKeyword highlighting_keywords_PYTHON[] =
 #define highlighting_lexer_R		SCLEX_R
 static const HLStyle highlighting_styles_R[] =
 {
-	{ SCE_R_DEFAULT,	"default",		FALSE },
-	{ SCE_R_COMMENT,	"comment",		FALSE },
-	{ SCE_R_KWORD,		"kword",		FALSE },
-	{ SCE_R_OPERATOR,	"operator",		FALSE },
-	{ SCE_R_BASEKWORD,	"basekword",	FALSE },
-	{ SCE_R_OTHERKWORD,	"otherkword",	FALSE },
-	{ SCE_R_NUMBER,		"number",		FALSE },
-	{ SCE_R_STRING,		"string",		FALSE },
-	{ SCE_R_STRING2,	"string2",		FALSE },
-	{ SCE_R_IDENTIFIER,	"identifier",	FALSE },
-	{ SCE_R_INFIX,		"infix",		FALSE },
-	{ SCE_R_INFIXEOL,	"infixeol",		FALSE }
+	{ SCE_R_DEFAULT,		"default",			FALSE },
+	{ SCE_R_COMMENT,		"comment",			FALSE },
+	{ SCE_R_KWORD,			"kword",			FALSE },
+	{ SCE_R_OPERATOR,		"operator",			FALSE },
+	{ SCE_R_BASEKWORD,		"basekword",		FALSE },
+	{ SCE_R_OTHERKWORD,		"otherkword",		FALSE },
+	{ SCE_R_NUMBER,			"number",			FALSE },
+	{ SCE_R_STRING,			"string",			FALSE },
+	{ SCE_R_STRING2,		"string2",			FALSE },
+	{ SCE_R_IDENTIFIER,		"identifier",		FALSE },
+	{ SCE_R_INFIX,			"infix",			FALSE },
+	{ SCE_R_INFIXEOL,		"infixeol",			FALSE },
+	{ SCE_R_BACKTICKS,		"backticks",		FALSE },
+	{ SCE_R_RAWSTRING,		"stringraw",		FALSE },
+	{ SCE_R_RAWSTRING2,		"stringraw",		FALSE },
+	{ SCE_R_ESCAPESEQUENCE,	"escapesequence",	FALSE }
 };
 static const HLKeyword highlighting_keywords_R[] =
 {
@@ -1383,6 +1397,53 @@ static const HLKeyword highlighting_keywords_R[] =
 	{ 2, "package_other",	FALSE }
 };
 #define highlighting_properties_R	EMPTY_PROPERTIES
+
+
+/* Raku */
+#define highlighting_lexer_RAKU			SCLEX_RAKU
+static const HLStyle highlighting_styles_RAKU[] =
+{
+	{ SCE_RAKU_DEFAULT,			"default",				FALSE },
+	{ SCE_RAKU_ERROR,			"error",				FALSE },
+	{ SCE_RAKU_COMMENTLINE,		"commentline",			FALSE },
+	{ SCE_RAKU_COMMENTEMBED,	"commentembed",			FALSE },
+	{ SCE_RAKU_POD,				"pod",					FALSE },
+	{ SCE_RAKU_CHARACTER,		"character",			FALSE },
+	{ SCE_RAKU_HEREDOC_Q,		"heredoc_q",			FALSE },
+	{ SCE_RAKU_HEREDOC_QQ,		"heredoc_qq",			FALSE },
+	{ SCE_RAKU_STRING,			"string",				FALSE },
+	{ SCE_RAKU_STRING_Q,		"string_q",				FALSE },
+	{ SCE_RAKU_STRING_QQ,		"string_qq",			FALSE },
+	{ SCE_RAKU_STRING_Q_LANG,	"string_q_lang",		FALSE },
+	{ SCE_RAKU_STRING_VAR,		"string_var",			FALSE },
+	{ SCE_RAKU_REGEX,			"regex",				FALSE },
+	{ SCE_RAKU_REGEX_VAR,		"regex_var",			FALSE },
+	{ SCE_RAKU_ADVERB,			"adverb",				FALSE },
+	{ SCE_RAKU_NUMBER,			"number",				FALSE },
+	{ SCE_RAKU_PREPROCESSOR,	"preprocessor",			FALSE },
+	{ SCE_RAKU_OPERATOR,		"operator",				FALSE },
+	{ SCE_RAKU_WORD,			"word",					FALSE },
+	{ SCE_RAKU_FUNCTION,		"function",				FALSE },
+	{ SCE_RAKU_IDENTIFIER,		"identifier",			FALSE },
+	{ SCE_RAKU_TYPEDEF,			"typedef",				FALSE },
+	{ SCE_RAKU_MU,				"mu",					FALSE },
+	{ SCE_RAKU_POSITIONAL,		"positional",			FALSE },
+	{ SCE_RAKU_ASSOCIATIVE,		"associative",			FALSE },
+	{ SCE_RAKU_CALLABLE,		"callable",				FALSE },
+	{ SCE_RAKU_GRAMMAR,			"grammar",				FALSE },
+	{ SCE_RAKU_CLASS,			"class",				FALSE }
+};
+static const HLKeyword highlighting_keywords_RAKU[] =
+{
+	{ 0, "keywords",			FALSE },
+	{ 1, "functions",			FALSE },
+	{ 2, "types_basic",			FALSE },
+	{ 3, "types_composite",		FALSE },
+	{ 4, "types_domain",		FALSE },
+	{ 5, "types_exceptions",	FALSE },
+	{ 6, "adverbs",				FALSE },
+};
+#define highlighting_properties_RAKU	EMPTY_PROPERTIES
 
 
 /* Ruby */
@@ -1420,6 +1481,10 @@ static const HLStyle highlighting_styles_RUBY[] =
 	{ SCE_RB_STRING_QX,		"string_qx",		FALSE },
 	{ SCE_RB_STRING_QR,		"string_qr",		FALSE },
 	{ SCE_RB_STRING_QW,		"string_qw",		FALSE },
+	{ SCE_RB_STRING_W,		"string_qw",		FALSE },
+	{ SCE_RB_STRING_QI,		"symbol",			FALSE },
+	{ SCE_RB_STRING_QS,		"symbol",			FALSE },
+	{ SCE_RB_STRING_I,		"symbol",			FALSE },
 	{ SCE_RB_UPPER_BOUND,	"upper_bound",		FALSE },
 	{ SCE_RB_ERROR,			"error",			FALSE },
 	{ SCE_RB_POD,			"pod",				FALSE }
@@ -1739,6 +1804,41 @@ static const HLKeyword highlighting_keywords_YAML[] =
 #define highlighting_styles_ZEPHIR		highlighting_styles_PHP
 #define highlighting_keywords_ZEPHIR	highlighting_keywords_PHP
 #define highlighting_properties_ZEPHIR	highlighting_properties_PHP
+
+
+/* AutoIt */
+#define highlighting_lexer_AU3			SCLEX_AU3
+static const HLStyle highlighting_styles_AU3[] =
+{
+	{ SCE_AU3_DEFAULT,		"default",		FALSE},
+	{ SCE_AU3_COMMENT,		"comment",		FALSE},
+	{ SCE_AU3_COMMENTBLOCK,		"commentblock",		FALSE},
+	{ SCE_AU3_NUMBER,		"number",		FALSE},
+	{ SCE_AU3_FUNCTION,		"function",		FALSE},
+	{ SCE_AU3_KEYWORD,		"keyword",		FALSE},
+	{ SCE_AU3_MACRO,		"macro",		FALSE},
+	{ SCE_AU3_STRING,		"string",		FALSE},
+	{ SCE_AU3_OPERATOR,		"operator",		FALSE},
+	{ SCE_AU3_VARIABLE,		"variable",		FALSE},
+	{ SCE_AU3_SENT,			"sent",			FALSE},
+	{ SCE_AU3_PREPROCESSOR,		"preprocessor",		FALSE},
+	{ SCE_AU3_SPECIAL,		"special",		FALSE},
+	{ SCE_AU3_EXPAND,		"expand",		FALSE},
+	{ SCE_AU3_COMOBJ,		"comobj",		FALSE},
+	{ SCE_AU3_UDF,			"udf",			FALSE}
+};
+static const HLKeyword highlighting_keywords_AU3[] =
+{
+	{ 0, "keywords",	FALSE },
+	{ 1, "functions",	FALSE },
+	{ 2, "macros",		FALSE },
+	{ 3, "sent",		FALSE },
+	{ 4, "preprocessor",	FALSE },
+	{ 5, "special",		FALSE },
+	{ 6, "expand",		FALSE },
+	{ 7, "udf",		FALSE }
+};
+#define highlighting_properties_AU3		EMPTY_PROPERTIES
 
 G_END_DECLS
 

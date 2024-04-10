@@ -1080,6 +1080,40 @@ static TMParserMapGroup group_BATCH[] = {
 	{N_("Variables"), TM_ICON_VAR, tm_tag_variable_t},
 };
 
+static TMParserMapEntry map_AUTOIT[] = {
+	{'f', tm_tag_function_t},
+	{'r', tm_tag_other_t},
+	{'g', tm_tag_variable_t},
+	{'l', tm_tag_variable_t},
+	{'S', tm_tag_undef_t},
+};
+static TMParserMapGroup group_AUTOIT[] = {
+	{N_("Functions"), TM_ICON_METHOD, tm_tag_function_t},
+	{N_("Regions"), TM_ICON_OTHER, tm_tag_other_t},
+	{N_("Variables"), TM_ICON_VAR, tm_tag_variable_t},
+};
+
+static TMParserMapEntry map_RAKU[] = {
+	{'c', tm_tag_class_t},      // class
+	{'g', tm_tag_struct_t},     // grammar
+	{'m', tm_tag_method_t},     // method
+	{'o', tm_tag_namespace_t},  // module
+	{'p', tm_tag_package_t},    // package
+	{'r', tm_tag_class_t},      // role
+	{'u', tm_tag_variable_t},   // rule
+	{'b', tm_tag_method_t},     // submethod
+	{'s', tm_tag_function_t},   // subroutine
+	{'t', tm_tag_variable_t},   // token
+};
+static TMParserMapGroup group_RAKU[] = {
+	{N_("Packages / Modules"), TM_ICON_NAMESPACE, tm_tag_package_t | tm_tag_namespace_t},
+	{N_("Classes / Roles"), TM_ICON_CLASS, tm_tag_class_t},
+	{N_("Grammars"), TM_ICON_STRUCT, tm_tag_struct_t},
+	{N_("Methods"), TM_ICON_METHOD, tm_tag_method_t},
+	{N_("Subroutines"), TM_ICON_METHOD, tm_tag_function_t},
+	{N_("Rules / Tokens"), TM_ICON_VAR, tm_tag_variable_t},
+};
+
 typedef struct
 {
     TMParserMapEntry *entries;
@@ -1151,6 +1185,8 @@ static TMParserMap parser_map[] = {
 	MAP_ENTRY(LISP),
 	MAP_ENTRY(TYPESCRIPT),
 	MAP_ENTRY(BATCH),
+	MAP_ENTRY(AUTOIT),
+	MAP_ENTRY(RAKU),
 };
 /* make sure the parser map is consistent and complete */
 G_STATIC_ASSERT(G_N_ELEMENTS(parser_map) == TM_PARSER_COUNT);
@@ -1411,7 +1447,7 @@ const gchar *tm_parser_get_constructor_method(TMParserType lang)
 
 /* determine anonymous tags from tag names only when corresponding
  * ctags information is not available */
-gboolean tm_parser_is_anon_name(TMParserType lang, gchar *name)
+gboolean tm_parser_is_anon_name(TMParserType lang, const gchar *name)
 {
 	guint i;
 	char dummy;
@@ -1430,7 +1466,7 @@ gboolean tm_parser_is_anon_name(TMParserType lang, gchar *name)
 }
 
 
-static gchar *replace_string_if_present(gchar *haystack, gchar *needle, gchar *subst)
+static gchar *replace_string_if_present(gchar *haystack, const gchar *needle, const gchar *subst)
 {
 	if (strstr(haystack, needle))
 	{
@@ -1503,21 +1539,36 @@ gboolean tm_parser_enable_kind(TMParserType lang, gchar kind)
 }
 
 
-gchar *tm_parser_format_variable(TMParserType lang, const gchar *name, const gchar *type)
+gchar *tm_parser_format_variable(TMParserType lang, const gchar *name, const gchar *type,
+	const gchar *scope)
 {
+	gchar *ret, *name_full;
+
 	if (!type)
 		return NULL;
+
+	if (scope)
+		name_full = g_strconcat(scope, tm_parser_scope_separator_printable(lang),
+			name, NULL);
+	else
+		name_full = g_strdup(name);
 
 	switch (lang)
 	{
 		case TM_PARSER_GO:
-			return g_strconcat(name, " ", type, NULL);
+			ret = g_strconcat(name_full, " ", type, NULL);
+			break;
 		case TM_PARSER_PASCAL:
 		case TM_PARSER_PYTHON:
-			return g_strconcat(name, ": ", type, NULL);
+			ret = g_strconcat(name_full, ": ", type, NULL);
+			break;
 		default:
-			return g_strconcat(type, " ", name, NULL);
+			ret = g_strconcat(type, " ", name_full, NULL);
+			break;
 	}
+
+	g_free(name_full);
+	return ret;
 }
 
 
@@ -1542,37 +1593,36 @@ gchar *tm_parser_format_function(TMParserType lang, const gchar *fname, const gc
 
 	if (retval)
 	{
+		const gchar *sep = NULL;
+
 		switch (lang)
 		{
-			case TM_PARSER_GDSCRIPT:
-			case TM_PARSER_GO:
+			/* retval after function */
 			case TM_PARSER_PASCAL:
+				sep = ": ";
+				break;
+			case TM_PARSER_GDSCRIPT:
 			case TM_PARSER_PYTHON:
-			{
-				/* retval after function */
-				const gchar *sep;
-				switch (lang)
-				{
-					case TM_PARSER_PASCAL:
-						sep = ": ";
-						break;
-					case TM_PARSER_GDSCRIPT:
-					case TM_PARSER_PYTHON:
-						sep = " -> ";
-						break;
-					default:
-						sep = " ";
-						break;
-				}
-				g_string_append(str, sep);
-				g_string_append(str, retval);
+				sep = " -> ";
 				break;
-			}
+			case TM_PARSER_GO:
+				sep = " ";
+				break;
 			default:
-				/* retval before function */
-				g_string_prepend_c(str, ' ');
-				g_string_prepend(str, retval);
 				break;
+		}
+
+		if (sep)
+		{
+			/* retval after function */
+			g_string_append(str, sep);
+			g_string_append(str, retval);
+		}
+		else
+		{
+			/* retval before function */
+			g_string_prepend_c(str, ' ');
+			g_string_prepend(str, retval);
 		}
 	}
 
@@ -1666,6 +1716,7 @@ gboolean tm_parser_has_full_scope(TMParserType lang)
 		case TM_PARSER_VHDL:
 		case TM_PARSER_VERILOG:
 		case TM_PARSER_ZEPHIR:
+		case TM_PARSER_AUTOIT:
 			return TRUE;
 
 		/* These make use of the scope, but don't include nested hierarchy

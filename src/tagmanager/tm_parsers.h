@@ -72,6 +72,8 @@
 	ClojureParser, \
 	LispParser, \
 	TypeScriptParser, \
-	DosBatchParser
+	DosBatchParser, \
+	AutoItParser, \
+	Perl6Parser
 
 #endif

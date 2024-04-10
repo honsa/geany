@@ -16,6 +16,7 @@ lexilla/lexers/LexAbaqus.cxx           \
 lexilla/lexers/LexAda.cxx              \
 lexilla/lexers/LexAsciidoc.cxx         \
 lexilla/lexers/LexAsm.cxx              \
+lexilla/lexers/LexAU3.cxx              \
 lexilla/lexers/LexBash.cxx             \
 lexilla/lexers/LexBasic.cxx            \
 lexilla/lexers/LexBatch.cxx            \
@@ -49,6 +50,7 @@ lexilla/lexers/LexProps.cxx            \
 lexilla/lexers/LexPython.cxx           \
 lexilla/lexers/LexPO.cxx               \
 lexilla/lexers/LexR.cxx                \
+lexilla/lexers/LexRaku.cxx             \
 lexilla/lexers/LexRuby.cxx             \
 lexilla/lexers/LexRust.cxx             \
 lexilla/lexers/LexSmalltalk.cxx        \
@@ -109,6 +111,7 @@ gtk/ScintillaGTKAccessible.cxx         \
 gtk/ScintillaGTKAccessible.h           \
 gtk/scintilla-marshal.c                \
 gtk/scintilla-marshal.h                \
+gtk/Wrappers.h                         \
 src/AutoComplete.cxx                   \
 src/AutoComplete.h                     \
 src/CallTip.cxx                        \
@@ -119,6 +122,8 @@ src/CaseFolder.cxx                     \
 src/CaseFolder.h                       \
 src/CellBuffer.cxx                     \
 src/CellBuffer.h                       \
+src/ChangeHistory.cxx                  \
+src/ChangeHistory.h                    \
 src/CharacterCategoryMap.cxx           \
 src/CharacterCategoryMap.h             \
 src/CharacterType.cxx                  \

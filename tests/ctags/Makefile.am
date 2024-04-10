@@ -294,6 +294,7 @@ test_sources = \
 	signature.cpp					\
 	simple.abc						\
 	simple.asciidoc					\
+	simple.au3						\
 	simple.bas						\
 	simple.bat						\
 	simple.clj						\
@@ -316,6 +317,7 @@ test_sources = \
 	simple.pl						\
 	simple.ps1						\
 	simple.py						\
+	simple.raku						\
 	simple.rb						\
 	simple.rst						\
 	simple.sh						\
