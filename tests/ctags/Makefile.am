@@ -128,6 +128,7 @@ test_sources = \
 	case_sensitivity.php			\
 	char-selector.f90				\
 	classes.php						\
+	class.ps1						\
 	cobol/helloworld.cbl			\
 	cobol/helloworld2.cbl			\
 	cobol/levels.cbl				\
@@ -165,6 +166,7 @@ test_sources = \
 	enum.c							\
 	enum.f90						\
 	enum.java						\
+	enum.ps1						\
 	enumerators.f90					\
 	events.cs						\
 	extern_variable.h				\
@@ -249,9 +251,11 @@ test_sources = \
 	mode.php						\
 	moniker.x68.asm					\
 	namelist.f						\
+	namespace.bas					\
 	namespace.cpp					\
 	namespaces2.php					\
 	namespaces.php					\
+	nested_anon.c					\
 	no_terminator.js				\
 	non-ascii-ident1.php			\
 	numlib.f90						\
@@ -313,6 +317,7 @@ test_sources = \
 	simple.lua						\
 	simple.mak						\
 	simple.md						\
+	simple.ml						\
 	simple.php						\
 	simple.pl						\
 	simple.ps1						\

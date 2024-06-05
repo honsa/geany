@@ -168,7 +168,7 @@ cdata.set_quoted('REVISION', revision)
 
 python_command = get_option('python-command')
 if python_command == '' or python_command == 'auto'
-	if target_machine.system() == 'windows'
+	if host_machine.system() == 'windows'
 		python_command = 'py'
 	else
 		python_command = 'python'
@@ -213,7 +213,7 @@ endforeach
 geany_cflags = def_cflags
 have_gcc4_visibility = cc.has_argument('-fvisibility=hidden')
 geany_cflags += '-DGEANY_PRIVATE'
-if target_machine.system() == 'windows'
+if host_machine.system() == 'windows'
 	geany_cflags += '-DGEANY_EXPORT_SYMBOL=__declspec(dllexport)'
 elif have_gcc4_visibility
 	geany_cflags += '-fvisibility=hidden'
@@ -500,6 +500,7 @@ ctags = static_library('ctags',
 	'ctags/main/htable.h',
 	'ctags/main/inline.h',
 	'ctags/main/interactive_p.h',
+	'ctags/main/interval_tree_generic.h',
 	'ctags/main/keyword.c',
 	'ctags/main/keyword.h',
 	'ctags/main/keyword_p.h',
@@ -547,6 +548,7 @@ ctags = static_library('ctags',
 	'ctags/main/ptrarray.h',
 	'ctags/main/rbtree.c',
 	'ctags/main/rbtree.h',
+	'ctags/main/rbtree_augmented.h',
 	'ctags/main/read.c',
 	'ctags/main/read.h',
 	'ctags/main/read_p.h',
@@ -578,6 +580,8 @@ ctags = static_library('ctags',
 	'ctags/main/types.h',
 	'ctags/main/unwindi.c',
 	'ctags/main/unwindi.h',
+	'ctags/main/utf8_str.c',
+	'ctags/main/utf8_str.h',
 	'ctags/main/vstring.c',
 	'ctags/main/vstring.h',
 	'ctags/main/writer.c',
@@ -597,6 +601,7 @@ ctags = static_library('ctags',
 	'ctags/parsers/autoit.c',
 	'ctags/parsers/basic.c',
 	'ctags/parsers/bibtex.c',
+	'ctags/parsers/bibtex.h',
 	'ctags/parsers/clojure.c',
 	'ctags/parsers/cobol.c',
 	'ctags/parsers/cpreprocessor.c',
@@ -614,6 +619,7 @@ ctags = static_library('ctags',
 	'ctags/parsers/cxx/cxx_parser.h',
 	'ctags/parsers/cxx/cxx_parser_internal.h',
 	'ctags/parsers/cxx/cxx_parser_lambda.c',
+	'ctags/parsers/cxx/cxx_parser_module.c',
 	'ctags/parsers/cxx/cxx_parser_namespace.c',
 	'ctags/parsers/cxx/cxx_parser_template.c',
 	'ctags/parsers/cxx/cxx_parser_tokenizer.c',
@@ -623,6 +629,8 @@ ctags = static_library('ctags',
 	'ctags/parsers/cxx/cxx_qtmoc.c',
 	'ctags/parsers/cxx/cxx_scope.c',
 	'ctags/parsers/cxx/cxx_scope.h',
+	'ctags/parsers/cxx/cxx_side_chain.c',
+	'ctags/parsers/cxx/cxx_side_chain.h',
 	'ctags/parsers/cxx/cxx_subparser.c',
 	'ctags/parsers/cxx/cxx_subparser.h',
 	'ctags/parsers/cxx/cxx_subparser_internal.h',
@@ -642,7 +650,7 @@ ctags = static_library('ctags',
 	'ctags/parsers/geany_docbook.c',
 	'ctags/parsers/geany_lcpp.c',
 	'ctags/parsers/geany_lcpp.h',
-	'ctags/parsers/geany_matlab.c',
+	'ctags/parsers/matlab.c',
 	'ctags/parsers/go.c',
 	'ctags/parsers/haskell.c',
 	'ctags/parsers/haxe.c',
@@ -650,8 +658,10 @@ ctags = static_library('ctags',
 	'ctags/parsers/iniconf.c',
 	'ctags/parsers/iniconf.h',
 	'ctags/parsers/jscript.c',
+	'ctags/parsers/jscript.h',
 	'ctags/parsers/json.c',
 	'ctags/parsers/julia.c',
+	'ctags/parsers/ldscript.c',
 	'ctags/parsers/lisp.c',
 	'ctags/parsers/lua.c',
 	'ctags/parsers/make.c',
@@ -660,19 +670,22 @@ ctags = static_library('ctags',
 	'ctags/parsers/markdown.h',
 	'ctags/parsers/nsis.c',
 	'ctags/parsers/objc.c',
+	'ctags/parsers/ocaml.c',
 	'ctags/parsers/pascal.c',
 	'ctags/parsers/perl.c',
 	'ctags/parsers/perl.h',
-	'ctags/parsers/perl6.c',
 	'ctags/parsers/php.c',
 	'ctags/parsers/powershell.c',
 	'ctags/parsers/python.c',
 	'ctags/parsers/r.c',
 	'ctags/parsers/r.h',
+	'ctags/parsers/raku.c',
 	'ctags/parsers/rst.c',
 	'ctags/parsers/ruby.c',
+	'ctags/parsers/ruby.h',
 	'ctags/parsers/rust.c',
 	'ctags/parsers/sh.c',
+	'ctags/parsers/sh.h',
 	'ctags/parsers/sql.c',
 	'ctags/parsers/tcl.c',
 	'ctags/parsers/tcl.h',
@@ -727,7 +740,10 @@ gen_src = custom_target('gen-signallist',
 
 win_src = []
 win_deps = []
+win_resc = []
 if (host_machine.system() == 'windows')
+	windows = import('windows')
+	win_resc = windows.compile_resources('geany_private.rc')
 	win_src += [ 'src/win32.c', 'src/win32.h' ]
 	foreach lib : ['ole32', 'wsock32', 'comdlg32']
 		win_deps += cc.find_library(lib)
@@ -881,6 +897,7 @@ dep_libgeany = declare_dependency(
 )
 
 executable('geany',
+	win_resc,
 	'src/main.c',
 	link_with: libgeany,
 	c_args: geany_cflags + [ '-DG_LOG_DOMAIN="Geany"' ],

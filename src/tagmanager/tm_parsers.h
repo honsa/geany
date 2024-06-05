@@ -74,6 +74,8 @@
 	TypeScriptParser, \
 	DosBatchParser, \
 	AutoItParser, \
-	Perl6Parser
+	Perl6Parser, \
+	OcamlParser, \
+	LdScriptParser
 
 #endif
