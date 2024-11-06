@@ -47,6 +47,7 @@
 #include "highlighting.h"
 #include "main.h"
 #include "navqueue.h"
+#include "pluginextension.h"
 #include "sciwrappers.h"
 #include "sidebar.h"
 #include "support.h"
@@ -1598,7 +1599,8 @@ static GPtrArray *filter_tags(GPtrArray *tags, TMTag *current_tag, gboolean defi
 	GPtrArray *filtered_tags = g_ptr_array_new();
 	guint i;
 
-	symbols_get_current_function(doc, &current_scope);
+	if (symbols_get_current_function(doc, &current_scope) == -1)
+		current_scope = NULL;  /* current_scope == "unknown" when not found */
 
 	foreach_ptr_array(tmtag, i, tags)
 	{
@@ -1710,19 +1712,41 @@ static gboolean goto_tag(const gchar *name, gboolean definition)
 }
 
 
-gboolean symbols_goto_tag(const gchar *name, gboolean definition)
+gboolean symbols_goto_tag(GeanyDocument *doc, gint pos, gboolean definition)
 {
-	if (goto_tag(name, definition))
-		return TRUE;
+	gchar *name;
+	gboolean success;
 
-	/* if we are here, there was no match and we are beeping ;-) */
-	utils_beep();
+	if (plugin_extension_goto_provided(doc, NULL))
+		return plugin_extension_goto_perform(doc, pos, definition);
 
-	if (!definition)
-		ui_set_statusbar(FALSE, _("Forward declaration \"%s\" not found."), name);
+	/* get the current selection if any, or current word */
+	if (sci_has_selection(doc->editor->sci))
+		name = sci_get_selection_contents(doc->editor->sci);
 	else
-		ui_set_statusbar(FALSE, _("Definition of \"%s\" not found."), name);
-	return FALSE;
+	{
+		editor_find_current_word(doc->editor, pos,
+			editor_info.current_word, GEANY_MAX_WORD_LENGTH, NULL);
+		name = *editor_info.current_word ? g_strdup(editor_info.current_word) : NULL;
+	}
+
+	if (!name)
+		return FALSE;
+
+	if (! (success = goto_tag(name, definition)))
+	{
+		/* if we are here, there was no match and we are beeping ;-) */
+		utils_beep();
+
+		if (!definition)
+			ui_set_statusbar(FALSE, _("Forward declaration \"%s\" not found."), name);
+		else
+			ui_set_statusbar(FALSE, _("Definition of \"%s\" not found."), name);
+	}
+
+	g_free(name);
+
+	return success;
 }
 
 
